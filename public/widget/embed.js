@@ -1,17 +1,23 @@
 // public/widget/embed.js
-// Dentalist AI floating widget (text + voice, mobile optimized)
+// Dentalist AI floating widget (text + voice, mobile optimized, premium UX)
 
 (function () {
   // ========= CONFIG =========
   const API_BASE = "https://dentalist-ai.vercel.app"; // your Vercel backend
   const STORAGE_KEY = "dentalist-ai-widget-state";
+  const AUTO_OPEN_SESSION_KEY = "dentalist-ai-auto-opened";
 
   if (window.__dentalistWidgetLoaded) return;
   window.__dentalistWidgetLoaded = true;
 
+  const prefersLight =
+    window.matchMedia &&
+    window.matchMedia("(prefers-color-scheme: light)").matches;
+
   // ========= DOM SHELL =========
   const root = document.createElement("div");
   root.id = "dentalist-ai-widget-root";
+  if (prefersLight) root.classList.add("da-theme-light");
   document.body.appendChild(root);
 
   root.innerHTML = `
@@ -20,13 +26,18 @@
         <div class="da-chat-header">
           <div class="da-chat-title">
             <span class="da-logo-tooth">🦷</span>
-            Dentalist AI
+            <div class="da-title-text">
+              <span class="da-title-main">Dentalist AI</span>
+              <span class="da-title-sub">
+                <span class="da-status-dot"></span> Online · 24/7
+              </span>
+            </div>
           </div>
           <button class="da-close-btn" type="button" aria-label="Close chat">×</button>
         </div>
 
         <div class="da-chat-subtitle">
-          I can help you book, reschedule, or ask questions about your visit.
+          I can help you book, reschedule, or answer questions about your visit.
         </div>
 
         <div class="da-messages"></div>
@@ -81,12 +92,22 @@
       cursor: pointer;
       position: relative;
       animation: da-pulse 2.2s infinite;
-      transition: transform 0.18s ease, box-shadow 0.18s ease;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
     }
 
     .da-floating-btn:hover {
       transform: translateY(-2px);
       box-shadow: 0 22px 50px rgba(0,0,0,0.65);
+    }
+
+    .da-floating-btn.da-pop {
+      animation: da-pop 0.18s ease-out;
+    }
+
+    .da-floating-btn.da-recording {
+      animation: da-record 1s infinite;
+      background: radial-gradient(circle at 30% 20%, #ffd1d1 0, #ff3b30 40%, #b81414 100%);
+      box-shadow: 0 0 0 0 rgba(255,59,48,0.6);
     }
 
     .da-floating-mic {
@@ -98,6 +119,17 @@
       0%   { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,106,26,0.55); }
       70%  { transform: scale(1.04); box-shadow: 0 0 0 12px rgba(255,106,26,0); }
       100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,106,26,0); }
+    }
+
+    @keyframes da-pop {
+      0% { transform: scale(0.9); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes da-record {
+      0% { box-shadow: 0 0 0 0 rgba(255,59,48,0.7); }
+      70% { box-shadow: 0 0 0 14px rgba(255,59,48,0); }
+      100% { box-shadow: 0 0 0 0 rgba(255,59,48,0); }
     }
 
     /* Chat window */
@@ -121,7 +153,7 @@
 
     .da-chat--hidden {
       opacity: 0;
-      transform: scale(0.92);
+      transform: scale(0.92) translateY(4px);
       pointer-events: none;
     }
 
@@ -130,28 +162,61 @@
       align-items: center;
       justify-content: space-between;
       padding: 14px 16px 10px 16px;
-      background: #0b1220;
+      background: linear-gradient(135deg, #020617 0%, #0b1220 45%, #020617 100%);
       border-bottom: 1px solid rgba(148,163,184,0.45);
     }
 
     .da-chat-title {
-      font-weight: 600;
-      font-size: 15px;
-      color: #f9fafb;
       display: flex;
       align-items: center;
       gap: 8px;
+      min-width: 0;
+    }
+
+    .da-title-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .da-title-main {
+      font-weight: 600;
+      font-size: 15px;
+      color: #f9fafb;
+    }
+
+    .da-title-sub {
+      font-size: 11px;
+      color: #9ca3af;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .da-status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 0 0 rgba(34,197,94,0.7);
+      animation: da-online-pulse 1.8s infinite;
+    }
+
+    @keyframes da-online-pulse {
+      0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.6); }
+      70% { box-shadow: 0 0 0 8px rgba(34,197,94,0); }
+      100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
     }
 
     .da-logo-tooth {
-      width: 22px;
-      height: 22px;
+      width: 26px;
+      height: 26px;
       border-radius: 999px;
       background: rgba(248,250,252,0.08);
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      font-size: 15px;
+      font-size: 16px;
     }
 
     .da-close-btn {
@@ -243,6 +308,12 @@
       color: #f9fafb;
       font-size: 15px;
       cursor: pointer;
+      transition: background 0.18s ease, transform 0.18s ease;
+    }
+
+    .da-inline-mic.da-recording {
+      background: #ff3b30;
+      transform: scale(0.96);
     }
 
     .da-input {
@@ -270,6 +341,12 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+
+    .da-send-btn:active {
+      transform: translateY(1px) scale(0.98);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.4);
     }
 
     .da-voice-hint {
@@ -277,6 +354,31 @@
       color: #9ca3af;
       padding: 0 16px 10px 16px;
       background: #0b1220;
+    }
+
+    /* Light theme overrides (if user has light system theme) */
+    #dentalist-ai-widget-root.da-theme-light .da-chat {
+      background: #f9fafb;
+    }
+    #dentalist-ai-widget-root.da-theme-light .da-chat-header {
+      background: linear-gradient(135deg, #f9fafb 0%, #e5e7eb 40%, #f9fafb 100%);
+      border-bottom-color: rgba(148,163,184,0.6);
+    }
+    #dentalist-ai-widget-root.da-theme-light .da-chat-subtitle,
+    #dentalist-ai-widget-root.da-theme-light .da-input-row,
+    #dentalist-ai-widget-root.da-theme-light .da-voice-hint {
+      background: #f3f4f6;
+    }
+    #dentalist-ai-widget-root.da-theme-light .da-messages {
+      background: radial-gradient(circle at top left, #e5e7eb 0, #f9fafb 55%);
+    }
+    #dentalist-ai-widget-root.da-theme-light .da-msg-bot {
+      background: #ffffff;
+      color: #020617;
+    }
+    #dentalist-ai-widget-root.da-theme-light .da-input {
+      background: #ffffff;
+      color: #020617;
     }
 
     @media (max-width: 640px) {
@@ -309,6 +411,8 @@
   let sending = false;
   let conversationHistory = [];
   let hasInteracted = false;
+  let hasSentWelcome = false;
+  let isRecording = false;
 
   // ========= STATE PERSISTENCE =========
   function loadState() {
@@ -339,6 +443,7 @@
       state.history.forEach((m) => {
         appendMessage(m.content, m.role === "user" ? "user" : "bot", false);
       });
+      hasSentWelcome = state.history.some((m) => m.role === "assistant");
     }
     if (state.open) {
       toggleChat(true, false);
@@ -346,11 +451,18 @@
   }
 
   // ========= UI HELPERS =========
+  function tinyPopButton() {
+    openBtn.classList.add("da-pop");
+    setTimeout(() => openBtn.classList.remove("da-pop"), 220);
+  }
+
   function toggleChat(forceOpen, save = true) {
     isOpen = typeof forceOpen === "boolean" ? forceOpen : !isOpen;
     chatEl.classList.toggle("da-chat--hidden", !isOpen);
     if (isOpen) {
+      tinyPopButton();
       inputEl.focus();
+      maybeSendWelcome();
     }
     if (save) saveState();
   }
@@ -383,6 +495,19 @@
     messagesEl.appendChild(msg);
     messagesEl.scrollTop = messagesEl.scrollHeight;
     return msg;
+  }
+
+  // First-time welcome message
+  function maybeSendWelcome() {
+    if (hasSentWelcome) return;
+    if (conversationHistory.length > 0) {
+      hasSentWelcome = true;
+      return;
+    }
+    const welcome =
+      "Hi, I’m Dentalist AI. I can help you book or reschedule an appointment, or answer questions about your visit. How can I help today?";
+    appendMessage(welcome, "bot");
+    hasSentWelcome = true;
   }
 
   // ========= TEXT CHAT =========
@@ -437,6 +562,12 @@
   });
 
   // ========= VOICE (IN + OUT) =========
+  function setRecording(flag) {
+    isRecording = flag;
+    openBtn.classList.toggle("da-recording", flag);
+    inlineMicBtn.classList.toggle("da-recording", flag);
+  }
+
   async function recordAndSendVoice() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       alert("Your browser doesn't support microphone recording.");
@@ -450,10 +581,13 @@
       const recorder = new MediaRecorder(stream);
       const chunks = [];
 
+      setRecording(true);
+
       recorder.ondataavailable = (e) => chunks.push(e.data);
 
       recorder.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
+        setRecording(false);
 
         const blob = new Blob(chunks, { type: "audio/webm" });
         await sendVoiceBlob(blob);
@@ -472,6 +606,7 @@
       window.addEventListener("touchend", stop);
     } catch (err) {
       console.error("Mic permission error:", err);
+      setRecording(false);
       alert(
         "I couldn't access your microphone. Please allow mic access in your browser settings."
       );
@@ -532,9 +667,9 @@
     toggleChat(false);
   });
 
-  // floating mic press-to-record
-  openBtn.addEventListener("mousedown", (e) => {
-    // if chat is closed, first open; second press is voice
+  // floating mic press-to-record:
+  // first press opens chat, second press (while open) records
+  openBtn.addEventListener("mousedown", () => {
     if (!isOpen) {
       toggleChat(true);
       hasInteracted = true;
@@ -566,11 +701,19 @@
   // ========= RESTORE & AUTO-OPEN =========
   restoreFromState();
 
-  // auto open after 5s if user hasn't interacted and chat not already open
+  // auto open once per session after 5s if user hasn't interacted
   setTimeout(() => {
     const state = loadState();
-    if (!hasInteracted && !(state && state.open)) {
+    const autoOpenedThisSession = sessionStorage.getItem(
+      AUTO_OPEN_SESSION_KEY
+    );
+    if (
+      !hasInteracted &&
+      !(state && state.open) &&
+      !autoOpenedThisSession
+    ) {
       toggleChat(true);
+      sessionStorage.setItem(AUTO_OPEN_SESSION_KEY, "1");
     }
   }, 5000);
 })();
