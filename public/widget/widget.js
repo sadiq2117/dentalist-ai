@@ -1,92 +1,74 @@
-const floatBtn = document.getElementById("dentalist-float-btn");
-const chatBox = document.getElementById("dentalist-chatbox");
-const messagesDiv = document.getElementById("chat-messages");
-const input = document.getElementById("chat-input");
-const sendBtn = document.getElementById("send-btn");
-const micBtn = document.getElementById("mic-btn");
+// Dentalist AI Floating Widget
+(function () {
+    let isOpen = false;
 
-let isChatOpen = false;
+    // Create the floating mic button
+    const button = document.createElement("div");
+    button.id = "dentalist-mic-btn";
+    button.innerHTML = "🎤";
+    document.body.appendChild(button);
 
-/* ---------------- OPEN / CLOSE CHAT ---------------- */
+    // Create the chat window
+    const chat = document.createElement("div");
+    chat.id = "dentalist-chatbox";
+    chat.innerHTML = `
+        <div class="chat-header">
+            <span>Dentalist AI Assistant</span>
+            <button id="chat-close">×</button>
+        </div>
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="chat-input">
+            <input id="chat-text" type="text" placeholder="Ask anything…" />
+            <button id="chat-send">➤</button>
+        </div>
+    `;
+    document.body.appendChild(chat);
 
-floatBtn.addEventListener("click", () => {
-  isChatOpen = !isChatOpen;
-  chatBox.classList.toggle("hidden");
-});
+    // Elements
+    const closeBtn = document.getElementById("chat-close");
+    const sendBtn = document.getElementById("chat-send");
+    const textInput = document.getElementById("chat-text");
+    const messages = document.getElementById("chat-messages");
 
-/* ---------------- SEND MESSAGE ---------------- */
+    function addMessage(text, sender) {
+        const msg = document.createElement("div");
+        msg.className = "msg " + sender;
+        msg.innerText = text;
+        messages.appendChild(msg);
+        messages.scrollTop = messages.scrollHeight;
+    }
 
-sendBtn.addEventListener("click", sendMessage);
-input.addEventListener("keypress", e => {
-  if (e.key === "Enter") sendMessage();
-});
+    async function sendMessage() {
+        const userText = textInput.value.trim();
+        if (!userText) return;
 
-function sendMessage() {
-  const text = input.value.trim();
-  if (!text) return;
+        addMessage(userText, "user");
+        textInput.value = "";
 
-  addUserMessage(text);
-  input.value = "";
+        // Send to your Vercel API
+        const res = await fetch("https://dentalist-ai.vercel.app/api/dentalist-chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: userText })
+        });
 
-  fetchAIResponse(text);
-}
+        const data = await res.json();
+        addMessage(data.reply, "bot");
+    }
 
-/* ---------------- ADD MESSAGES ---------------- */
+    // Toggle chat window
+    button.onclick = () => {
+        isOpen = !isOpen;
+        chat.style.display = isOpen ? "flex" : "none";
+    };
 
-function addUserMessage(text) {
-  const bubble = document.createElement("div");
-  bubble.className = "user-msg";
-  bubble.innerText = text;
-  messagesDiv.appendChild(bubble);
-  messagesDiv.scrollTop = messagesDiv.scrollHeight;
-}
+    closeBtn.onclick = () => {
+        isOpen = false;
+        chat.style.display = "none";
+    };
 
-function addAIMessage(text) {
-  const bubble = document.createElement("div");
-  bubble.className = "ai-msg";
-  bubble.innerText = text;
-  messagesDiv.appendChild(bubble);
-  messagesDiv.scrollTop = messagesDiv.scrollHeight;
-}
-
-/* ---------------- CALL BACKEND ---------------- */
-
-async function fetchAIResponse(text) {
-  const res = await fetch("https://dentalist-ai.vercel.app/api/dentalist-chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message: text })
-  });
-
-  const data = await res.json();
-  addAIMessage(data.reply);
-
-  // play audio response
-  if (data.audio) {
-    const audio = new Audio("data:audio/mp3;base64," + data.audio);
-    audio.play();
-  }
-}
-
-/* ---------------- MICROPHONE ---------------- */
-
-let recognition;
-
-micBtn.onclick = () => {
-  if (!("webkitSpeechRecognition" in window)) {
-    alert("Voice input not supported on this device");
-    return;
-  }
-
-  recognition = new webkitSpeechRecognition();
-  recognition.lang = "en-US";
-  recognition.interimResults = false;
-
-  recognition.onresult = event => {
-    const transcript = event.results[0][0].transcript;
-    input.value = transcript;
-    sendMessage();
-  };
-
-  recognition.start();
-};
+    sendBtn.onclick = sendMessage;
+    textInput.addEventListener("keypress", e => {
+        if (e.key === "Enter") sendMessage();
+    });
+})();
