@@ -1,83 +1,92 @@
-const messagesDiv = document.getElementById("messages");
-const input = document.getElementById("userInput");
-const sendBtn = document.getElementById("sendBtn");
-const micBtn = document.getElementById("micBtn");
-const floatingMic = document.getElementById("floatingMic");
+const floatBtn = document.getElementById("dentalist-float-btn");
+const chatBox = document.getElementById("dentalist-chatbox");
+const messagesDiv = document.getElementById("chat-messages");
+const input = document.getElementById("chat-input");
+const sendBtn = document.getElementById("send-btn");
+const micBtn = document.getElementById("mic-btn");
 
-let recorder;
-let audioChunks = [];
+let isChatOpen = false;
 
-// Auto-open widget when floating mic is tapped
-floatingMic.onclick = () => {
-  document.getElementById("chat-container").style.display = "flex";
-  floatingMic.style.display = "none";
-};
+/* ---------------- OPEN / CLOSE CHAT ---------------- */
 
-// Send text message
-sendBtn.onclick = () => {
-  sendMessage(input.value);
-};
+floatBtn.addEventListener("click", () => {
+  isChatOpen = !isChatOpen;
+  chatBox.classList.toggle("hidden");
+});
 
-function sendMessage(text) {
-  if (!text.trim()) return;
+/* ---------------- SEND MESSAGE ---------------- */
 
-  appendMessage("user", text);
+sendBtn.addEventListener("click", sendMessage);
+input.addEventListener("keypress", e => {
+  if (e.key === "Enter") sendMessage();
+});
 
-  fetch("/api/transcribe", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text })
-  })
-  .then(r => r.json())
-  .then(res => {
-    appendMessage("ai", res.reply);
+function sendMessage() {
+  const text = input.value.trim();
+  if (!text) return;
 
-    if (res.audio) {
-      const audio = new Audio(res.audio);
-      audio.play();
-    }
-  });
-
+  addUserMessage(text);
   input.value = "";
+
+  fetchAIResponse(text);
 }
 
-function appendMessage(role, text) {
-  const div = document.createElement("div");
-  div.className = role;
-  div.innerText = text;
-  messagesDiv.appendChild(div);
+/* ---------------- ADD MESSAGES ---------------- */
+
+function addUserMessage(text) {
+  const bubble = document.createElement("div");
+  bubble.className = "user-msg";
+  bubble.innerText = text;
+  messagesDiv.appendChild(bubble);
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
-// Microphone + iPhone fix
-micBtn.onclick = async () => {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  recorder = new MediaRecorder(stream);
+function addAIMessage(text) {
+  const bubble = document.createElement("div");
+  bubble.className = "ai-msg";
+  bubble.innerText = text;
+  messagesDiv.appendChild(bubble);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
 
-  audioChunks = [];
+/* ---------------- CALL BACKEND ---------------- */
 
-  recorder.ondataavailable = e => audioChunks.push(e.data);
+async function fetchAIResponse(text) {
+  const res = await fetch("https://dentalist-ai.vercel.app/api/dentalist-chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: text })
+  });
 
-  recorder.onstop = async () => {
-    const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
-    const formData = new FormData();
-    formData.append("audio", audioBlob);
+  const data = await res.json();
+  addAIMessage(data.reply);
 
-    const response = await fetch("/api/transcribe", {
-      method: "POST",
-      body: formData
-    });
+  // play audio response
+  if (data.audio) {
+    const audio = new Audio("data:audio/mp3;base64," + data.audio);
+    audio.play();
+  }
+}
 
-    const data = await response.json();
+/* ---------------- MICROPHONE ---------------- */
 
-    appendMessage("ai", data.reply);
+let recognition;
 
-    if (data.audio) {
-      new Audio(data.audio).play();
-    }
+micBtn.onclick = () => {
+  if (!("webkitSpeechRecognition" in window)) {
+    alert("Voice input not supported on this device");
+    return;
+  }
+
+  recognition = new webkitSpeechRecognition();
+  recognition.lang = "en-US";
+  recognition.interimResults = false;
+
+  recognition.onresult = event => {
+    const transcript = event.results[0][0].transcript;
+    input.value = transcript;
+    sendMessage();
   };
 
-  recorder.start();
-
-  setTimeout(() => recorder.stop(), 3000);
+  recognition.start();
 };
