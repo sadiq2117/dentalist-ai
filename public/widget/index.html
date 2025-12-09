@@ -1,47 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dentalist AI Widget</title>
-  <link rel="stylesheet" href="widget.css" />
+  <link rel="stylesheet" href="widget.css">
 </head>
 
 <body>
-  <div id="chat-wrapper">
-    <div id="chat-window">
-      <div id="messages"></div>
+  <div id="chat-container">
+    <div id="messages"></div>
 
-      <div id="input-area">
-        <input
-          id="userInput"
-          type="text"
-          placeholder="Ask about booking, treatments, pricing..."
-        />
-        <button id="sendBtn" class="send-btn">
-          <img src="assets/send.svg" />
-        </button>
-
-        <button id="micBtn" class="mic-btn">
-          <img src="assets/mic.svg" />
-        </button>
-      </div>
-    </div>
-
-    <!-- Floating Mic Button -->
-    <button id="openChat" class="floating-btn">
-      <img src="assets/mic.svg" />
-    </button>
-  </div>
-
-  <!-- iPhone Mic Modal -->
-  <div id="voiceModal" class="voice-modal">
-    <div class="voice-content">
-      <h2>Listening…</h2>
-      <p>Speak now</p>
-      <button id="stopVoiceBtn" class="stop-voice-btn">Stop</button>
+    <div id="input-box">
+      <input id="userInput" type="text" placeholder="Ask about booking, treatment, rescheduling...">
+      <button id="sendBtn"><img src="./assets/send.svg"></button>
+      <button id="micBtn"><img src="./assets/mic.svg"></button>
     </div>
   </div>
+
+  <button id="floatingMic">
+    <img src="./assets/mic.svg">
+  </button>
 
   <script src="widget.js"></script>
 </body>
