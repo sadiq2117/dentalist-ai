@@ -1,73 +1,71 @@
-// api/transcribe.js
-import { client } from "./utils.js";
-import Busboy from "busboy";
+// api/dentalist-chat.js
+import OpenAI from "openai";
 
-export const config = {
-  api: {
-    bodyParser: false, // Required for Busboy
-  },
-};
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+// CORS helper so Wix can call this safely
+function setCors(res) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+}
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method Not Allowed" });
+  setCors(res);
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
   }
 
-  // Multipart (audio upload)
-  if (req.headers["content-type"]?.includes("multipart/form-data")) {
-    const busboy = Busboy({ headers: req.headers });
-    let audioBuffer;
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
-    return new Promise((resolve) => {
-      busboy.on("file", (_name, file) => {
-        const chunks = [];
-        file.on("data", (c) => chunks.push(c));
-        file.on("end", () => (audioBuffer = Buffer.from(chunks)));
-      });
+  try {
+    const { message, history } = req.body || {};
 
-      busboy.on("finish", async () => {
-        try {
-          // 1. Transcribe audio
-          const transcript = await client.audio.transcriptions.create({
-            file: audioBuffer,
-            model: "gpt-4o-transcribe",
-          });
+    if (!message || typeof message !== "string") {
+      return res.status(400).json({ error: "Message is required" });
+    }
 
-          // 2. Chat reply
-          const chat = await client.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-              { role: "system", content: "You are Dentalist AI, a friendly dental receptionist." },
-              { role: "user", content: transcript.text }
-            ]
-          });
+    const systemPrompt = `
+You are **Dentalist AI**, a warm, human-sounding receptionist for a modern dental clinic.
+Goals:
+- Make patients feel understood and cared for.
+- Help with booking, rescheduling, cancellations, and FAQs.
+- Ask gentle follow-up questions (date, time, type of visit, pain level, etc.).
+- Keep answers short, clear, and conversational. No long paragraphs.
+- Never invent medical diagnoses. For anything clinical, suggest speaking with the dentist.
+Tone:
+- Friendly, calm, reassuring, like a real receptionist.
+- Use simple language.
+- Adapt to the patient's mood (nervous, in pain, just curious).
+If you need details, ask one or two specific questions instead of many at once.
+    `.trim();
 
-          const replyText = chat.choices[0].message.content;
+    const messages = [
+      { role: "system", content: systemPrompt },
+      ...(Array.isArray(history) ? history : []),
+      { role: "user", content: message },
+    ];
 
-          // 3. Convert text → voice
-          const speech = await client.audio.speech.create({
-            model: "gpt-4o-mini-tts",
-            voice: "alloy",
-            input: replyText,
-          });
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages,
+      temperature: 0.7,
+    });
 
-          return resolve(
-            res.status(200).json({
-              text: replyText,
-              audio: `data:audio/mp3;base64,${speech.audio_base64}`,
-            })
-          );
+    const reply =
+      completion.choices?.[0]?.message?.content ||
+      "I’m here to help with your dental visit. How can I assist you today?";
 
-        } catch (err) {
-          console.error("Error in transcribe:", err);
-          return resolve(res.status(500).json({ error: "Processing Failed" }));
-        }
-      });
-
-      req.pipe(busboy);
+    return res.status(200).json({ reply });
+  } catch (err) {
+    console.error("Chat API error:", err);
+    return res.status(500).json({
+      error: "Something went wrong talking to Dentalist AI.",
     });
   }
-
-  // If someone sends non multipart
-  res.status(400).json({ error: "Use multipart/form-data for audio uploads." });
 }
