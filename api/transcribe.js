@@ -1,48 +1,32 @@
-import OpenAI from "openai";
-export const config = { runtime: "edge" };
+// api/dentalist-chat.js
+import { client, readJson } from "./utils.js";
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-export default async function handler(req) {
-  const contentType = req.headers.get("Content-Type") || "";
-
-  // Voice upload
-  if (contentType.includes("multipart/form-data")) {
-    const form = await req.formData();
-    const audio = form.get("audio");
-
-    const transcript = await client.audio.transcriptions.create({
-      file: audio,
-      model: "gpt-4o-transcribe"
-    });
-
-    const reply = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: transcript.text }]
-    });
-
-    const speech = await client.audio.speech.create({
-      model: "gpt-4o-mini-tts",
-      voice: "alloy",
-      input: reply.choices[0].message.content
-    });
-
-    return new Response(JSON.stringify({
-      reply: reply.choices[0].message.content,
-      audio: `data:audio/mp3;base64,${speech.audio_base64}`
-    }), { status: 200 });
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method Not Allowed" });
   }
 
-  // Text mode
-  const body = await req.json();
-  const { text } = body;
+  const body = await readJson(req);
 
-  const reply = await client.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: text }]
-  });
+  if (!body.message) {
+    return res.status(400).json({ error: "Missing message" });
+  }
 
-  return new Response(JSON.stringify({
-    reply: reply.choices[0].message.content
-  }), { status: 200 });
+  try {
+    const response = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "You are Dentalist AI, a warm and human-like dental receptionist." },
+        { role: "user", content: body.message }
+      ]
+    });
+
+    return res.status(200).json({
+      reply: response.choices[0].message.content
+    });
+
+  } catch (err) {
+    console.error("Chat API Error:", err);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
 }
