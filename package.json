@@ -1,0 +1,13 @@
+{
+  "name": "dentalist-ai",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node",
+    "start": "node"
+  },
+  "dependencies": {
+    "openai": "latest",
+    "busboy": "^1.6.0"
+  }
+}
