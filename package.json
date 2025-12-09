@@ -1,13 +1,10 @@
+// package.json (root of repo)
 {
   "name": "dentalist-ai",
   "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "dev": "node",
-    "start": "node"
-  },
+  "type": "module",
   "dependencies": {
-    "openai": "latest",
-    "busboy": "^1.6.0"
+    "openai": "^4.0.0",
+    "formidable": "^3.5.0"
   }
 }
