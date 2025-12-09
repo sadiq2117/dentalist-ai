@@ -1,134 +1,83 @@
-/* ----------- Overall widget wrapper ----------- */
-#chat-wrapper {
-  position: fixed;
-  bottom: 120px;
-  right: 40px;
-  z-index: 999999;
-  font-family: "Inter", sans-serif;
+const messagesDiv = document.getElementById("messages");
+const input = document.getElementById("userInput");
+const sendBtn = document.getElementById("sendBtn");
+const micBtn = document.getElementById("micBtn");
+const floatingMic = document.getElementById("floatingMic");
+
+let recorder;
+let audioChunks = [];
+
+// Auto-open widget when floating mic is tapped
+floatingMic.onclick = () => {
+  document.getElementById("chat-container").style.display = "flex";
+  floatingMic.style.display = "none";
+};
+
+// Send text message
+sendBtn.onclick = () => {
+  sendMessage(input.value);
+};
+
+function sendMessage(text) {
+  if (!text.trim()) return;
+
+  appendMessage("user", text);
+
+  fetch("/api/transcribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text })
+  })
+  .then(r => r.json())
+  .then(res => {
+    appendMessage("ai", res.reply);
+
+    if (res.audio) {
+      const audio = new Audio(res.audio);
+      audio.play();
+    }
+  });
+
+  input.value = "";
 }
 
-/* ----------- Chat Window ----------- */
-#chat-window {
-  width: 360px;
-  height: 520px;
-  background: #070d1a;
-  border-radius: 22px;
-  overflow: hidden;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
-  display: none;
-  flex-direction: column;
+function appendMessage(role, text) {
+  const div = document.createElement("div");
+  div.className = role;
+  div.innerText = text;
+  messagesDiv.appendChild(div);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
-/* ----------- Messages Section ----------- */
-#messages {
-  flex: 1;
-  padding: 18px;
-  overflow-y: auto;
-  color: #fff;
-}
+// Microphone + iPhone fix
+micBtn.onclick = async () => {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  recorder = new MediaRecorder(stream);
 
-.message {
-  margin-bottom: 14px;
-  max-width: 85%;
-  line-height: 1.4;
-  padding: 12px 16px;
-  border-radius: 14px;
-}
+  audioChunks = [];
 
-.user {
-  background: #ff7b36;
-  margin-left: auto;
-  color: #fff;
-}
+  recorder.ondataavailable = e => audioChunks.push(e.data);
 
-.bot {
-  background: #0f172a;
-  color: #e2e8f0;
-  border: 1px solid #1e293b;
-}
+  recorder.onstop = async () => {
+    const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+    const formData = new FormData();
+    formData.append("audio", audioBlob);
 
-/* ----------- Input Area ----------- */
-#input-area {
-  padding: 10px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #0f172a;
-  border-top: 1px solid #1e293b;
-}
+    const response = await fetch("/api/transcribe", {
+      method: "POST",
+      body: formData
+    });
 
-#userInput {
-  flex: 1;
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: none;
-  outline: none;
-  background: #1e293b;
-  color: white;
-  font-size: 15px;
-}
+    const data = await response.json();
 
-.send-btn img,
-.mic-btn img {
-  width: 22px;
-  height: 22px;
-}
+    appendMessage("ai", data.reply);
 
-.send-btn,
-.mic-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-}
+    if (data.audio) {
+      new Audio(data.audio).play();
+    }
+  };
 
-/* ----------- Floating Button ----------- */
-.floating-btn {
-  position: fixed;
-  bottom: 35px;
-  right: 35px;
-  width: 70px;
-  height: 70px;
-  border-radius: 50%;
-  border: none;
-  background: #ff7b36;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-  z-index: 9999999;
-}
+  recorder.start();
 
-.floating-btn img {
-  width: 32px;
-  height: 32px;
-}
-
-/* ----------- iPhone Voice Modal ----------- */
-.voice-modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: none;
-  justify-content: center;
-  align-items: center;
-  z-index: 99999999;
-}
-
-.voice-content {
-  background: #0f172a;
-  padding: 25px;
-  border-radius: 20px;
-  text-align: center;
-  color: white;
-}
-
-.stop-voice-btn {
-  margin-top: 15px;
-  padding: 10px 20px;
-  background: #ff7b36;
-  border: none;
-  border-radius: 10px;
-  color: white;
-  cursor: pointer;
-}
+  setTimeout(() => recorder.stop(), 3000);
+};
