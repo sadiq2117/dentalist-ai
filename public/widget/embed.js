@@ -1,23 +1,16 @@
 // public/widget/embed.js
-// Dentalist AI floating widget (text + voice, mobile optimized, premium UX)
+// Dentalist AI floating widget (enhanced UI)
 
 (function () {
-  // ========= CONFIG =========
-  const API_BASE = "https://dentalist-ai.vercel.app"; // your Vercel backend
+  const API_BASE = "https://dentalist-ai.vercel.app";
   const STORAGE_KEY = "dentalist-ai-widget-state";
-  const AUTO_OPEN_SESSION_KEY = "dentalist-ai-auto-opened";
 
   if (window.__dentalistWidgetLoaded) return;
   window.__dentalistWidgetLoaded = true;
 
-  const prefersLight =
-    window.matchMedia &&
-    window.matchMedia("(prefers-color-scheme: light)").matches;
-
-  // ========= DOM SHELL =========
+  // ROOT
   const root = document.createElement("div");
   root.id = "dentalist-ai-widget-root";
-  if (prefersLight) root.classList.add("da-theme-light");
   document.body.appendChild(root);
 
   root.innerHTML = `
@@ -25,28 +18,21 @@
       <div class="da-chat da-chat--hidden">
         <div class="da-chat-header">
           <div class="da-chat-title">
-            <span class="da-logo-tooth">🦷</span>
-            <div class="da-title-text">
-              <span class="da-title-main">Dentalist AI</span>
-              <span class="da-title-sub">
-                <span class="da-status-dot"></span> Online · 24/7
-              </span>
-            </div>
+            <span class="da-logo-tooth">🦷</span> Dentalist AI
           </div>
-          <button class="da-close-btn" type="button" aria-label="Close chat">×</button>
+          <button class="da-close-btn" aria-label="Close">×</button>
         </div>
 
         <div class="da-chat-subtitle">
-          I can help you book, reschedule, or answer questions about your visit.
+          I can help you book, reschedule, or ask questions about your visit.
         </div>
 
         <div class="da-messages"></div>
 
         <div class="da-input-row">
-          <button class="da-inline-mic" type="button" aria-label="Voice message">🎤</button>
-          <input class="da-input" type="text"
-            placeholder="Ask about booking, rescheduling, or treatment..." />
-          <button class="da-send-btn" type="button" aria-label="Send message">➤</button>
+          <button class="da-inline-mic">🎤</button>
+          <input class="da-input" placeholder="Ask about booking, rescheduling, or treatment..." />
+          <button class="da-send-btn">➤</button>
         </div>
 
         <div class="da-voice-hint">
@@ -54,23 +40,26 @@
         </div>
       </div>
 
-      <button class="da-floating-btn" type="button" aria-label="Open Dentalist AI">
+      <button class="da-floating-btn">
         <span class="da-floating-mic">🎤</span>
       </button>
     </div>
   `;
 
-  // ========= STYLES =========
+  // STYLES
   const style = document.createElement("style");
   style.textContent = `
+
+    /* ROOT */
     #dentalist-ai-widget-root {
       position: fixed;
       inset: 0;
       pointer-events: none;
       z-index: 999999;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", sans-serif;
+      font-family: "Inter", system-ui, sans-serif;
     }
 
+    /* WRAPPER */
     .da-widget {
       position: absolute;
       bottom: 20px;
@@ -78,404 +67,235 @@
       pointer-events: auto;
     }
 
-    /* Floating button */
+    /* FLOATING BUTTON WITH ORANGE GLOW */
     .da-floating-btn {
       width: 64px;
       height: 64px;
-      border-radius: 999px;
+      border-radius: 50%;
       border: none;
+      cursor: pointer;
       background: radial-gradient(circle at 30% 20%, #ffd4b8 0, #ff6a1a 40%, #b93815 100%);
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 18px 40px rgba(0,0,0,0.55);
-      cursor: pointer;
-      position: relative;
+      box-shadow: 0 0 22px rgba(255,106,26,0.7), 0 22px 50px rgba(0,0,0,0.45);
       animation: da-pulse 2.2s infinite;
-      transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+      transition: transform .18s ease, box-shadow .18s ease;
     }
-
     .da-floating-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 22px 50px rgba(0,0,0,0.65);
-    }
-
-    .da-floating-btn.da-pop {
-      animation: da-pop 0.18s ease-out;
-    }
-
-    .da-floating-btn.da-recording {
-      animation: da-record 1s infinite;
-      background: radial-gradient(circle at 30% 20%, #ffd1d1 0, #ff3b30 40%, #b81414 100%);
-      box-shadow: 0 0 0 0 rgba(255,59,48,0.6);
-    }
-
-    .da-floating-mic {
-      font-size: 26px;
-      color: #fff;
+      transform: scale(1.06);
+      box-shadow: 0 0 32px rgba(255,106,26,1);
     }
 
     @keyframes da-pulse {
-      0%   { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,106,26,0.55); }
-      70%  { transform: scale(1.04); box-shadow: 0 0 0 12px rgba(255,106,26,0); }
-      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,106,26,0); }
-    }
-
-    @keyframes da-pop {
-      0% { transform: scale(0.9); }
+      0% { transform: scale(1); }
+      70% { transform: scale(1.04); }
       100% { transform: scale(1); }
     }
 
-    @keyframes da-record {
-      0% { box-shadow: 0 0 0 0 rgba(255,59,48,0.7); }
-      70% { box-shadow: 0 0 0 14px rgba(255,59,48,0); }
-      100% { box-shadow: 0 0 0 0 rgba(255,59,48,0); }
-    }
+    .da-floating-mic { font-size: 26px; color: #fff; }
 
-    /* Chat window */
+    /* CHAT WINDOW WITH SLIDE-IN ANIMATION */
     .da-chat {
-      position: absolute;
-      bottom: 80px;
-      right: 0;
       width: min(380px, 92vw);
       height: 520px;
-      background: #050814;
+      background: rgba(5,8,20,0.92);
+      backdrop-filter: blur(18px);
       border-radius: 20px;
       box-shadow: 0 24px 80px rgba(0,0,0,0.7);
+      position: absolute;
+      bottom: 90px;
+      right: 0;
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      transform-origin: bottom right;
-      transform: scale(1);
-      opacity: 1;
-      transition: opacity 0.18s ease, transform 0.18s ease;
-    }
-
-    .da-chat--hidden {
+      transform: translateY(40px) scale(0.94);
       opacity: 0;
-      transform: scale(0.92) translateY(4px);
+      transition: transform .3s ease, opacity .3s ease;
       pointer-events: none;
     }
 
+    .da-chat--hidden {
+      opacity: 0 !important;
+      transform: translateY(40px) scale(0.94) !important;
+      pointer-events: none;
+    }
+
+    .da-chat:not(.da-chat--hidden) {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: all;
+    }
+
     .da-chat-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 14px 16px 10px 16px;
-      background: linear-gradient(135deg, #020617 0%, #0b1220 45%, #020617 100%);
-      border-bottom: 1px solid rgba(148,163,184,0.45);
+      background:#0b1220;
+      padding: 14px 16px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      border-bottom: 1px solid rgba(148,163,184,0.3);
     }
 
-    .da-chat-title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      min-width: 0;
-    }
-
-    .da-title-text {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .da-title-main {
-      font-weight: 600;
-      font-size: 15px;
-      color: #f9fafb;
-    }
-
-    .da-title-sub {
-      font-size: 11px;
-      color: #9ca3af;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .da-status-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 999px;
-      background: #22c55e;
-      box-shadow: 0 0 0 0 rgba(34,197,94,0.7);
-      animation: da-online-pulse 1.8s infinite;
-    }
-
-    @keyframes da-online-pulse {
-      0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.6); }
-      70% { box-shadow: 0 0 0 8px rgba(34,197,94,0); }
-      100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
-    }
-
-    .da-logo-tooth {
-      width: 26px;
-      height: 26px;
-      border-radius: 999px;
-      background: rgba(248,250,252,0.08);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-    }
+    .da-chat-title { font-weight: 600; color:#fff; display:flex; gap:8px; }
 
     .da-close-btn {
-      border: none;
-      background: transparent;
-      color: #e5e7eb;
+      background:none;
+      border:none;
+      color:#eee;
       font-size: 20px;
-      cursor: pointer;
-      opacity: 0.75;
-      padding: 0 4px;
+      cursor:pointer;
     }
-    .da-close-btn:hover { opacity: 1; }
 
     .da-chat-subtitle {
+      color:#9ca3af;
       font-size: 12px;
-      color: #9ca3af;
-      padding: 6px 16px 8px 16px;
-      background: #0b1220;
+      padding: 6px 16px;
+      background:#0b1220;
     }
 
     .da-messages {
-      flex: 1;
-      padding: 12px 14px 10px 14px;
-      overflow-y: auto;
-      background: radial-gradient(circle at top left, #111827 0, #050814 55%);
+      flex:1;
+      padding: 14px;
+      overflow-y:auto;
+      background: radial-gradient(circle at top left, #111827 0, #050814 60%);
     }
 
-    .da-msg {
-      max-width: 85%;
-      padding: 9px 11px;
-      border-radius: 12px;
-      font-size: 14px;
-      line-height: 1.35;
-      margin-bottom: 8px;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-    }
-
+    /* USER BUBBLE WITH ORANGE GLOW */
     .da-msg-user {
-      margin-left: auto;
-      background: #ff6a1a;
-      color: #fff;
-      border-bottom-right-radius: 4px;
+      background:#ff6a1a;
+      color:white;
+      padding: 9px 12px;
+      border-radius:12px;
+      max-width: 80%;
+      margin-left:auto;
+      margin-bottom:8px;
+      box-shadow: 0 0 14px rgba(255,106,26,0.7);
     }
 
+    /* BOT BUBBLE */
     .da-msg-bot {
-      margin-right: auto;
       background: rgba(15,23,42,0.9);
-      color: #f9fafb;
-      border-bottom-left-radius: 4px;
-      border: 1px solid rgba(148,163,184,0.45);
+      border:1px solid rgba(148,163,184,0.3);
+      color:#fff;
+      padding: 9px 12px;
+      border-radius:12px;
+      max-width: 80%;
+      margin-bottom:8px;
     }
 
+    /* TYPING ANIMATION */
     .da-msg-loading {
-      display: inline-flex;
-      gap: 3px;
+      display:flex;
+      gap:4px;
+      padding:6px 12px;
     }
-
     .da-dot {
-      width: 4px;
-      height: 4px;
-      border-radius: 999px;
-      background: #e5e7eb;
+      width:6px;height:6px;
+      background:#e5e7eb;
+      border-radius:50%;
       animation: da-bounce 1s infinite ease-in-out;
     }
-    .da-dot:nth-child(2) { animation-delay: 0.16s; }
-    .da-dot:nth-child(3) { animation-delay: 0.32s; }
+    .da-dot:nth-child(2){ animation-delay:0.15s; }
+    .da-dot:nth-child(3){ animation-delay:0.3s; }
 
     @keyframes da-bounce {
-      0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
-      40% { transform: translateY(-4px); opacity: 1; }
+      0%,80%,100% { transform: translateY(0); opacity:.4; }
+      40% { transform: translateY(-5px); opacity:1; }
     }
 
+    /* INPUT AREA */
     .da-input-row {
-      display: flex;
-      align-items: center;
-      padding: 8px 8px 10px 8px;
-      border-top: 1px solid rgba(148,163,184,0.4);
-      background: #0b1220;
-      gap: 6px;
+      padding:10px;
+      display:flex;
+      gap:6px;
+      background:#0b1220;
+      border-top:1px solid rgba(148,163,184,0.3);
     }
 
     .da-inline-mic {
-      width: 32px;
-      height: 32px;
-      border-radius: 999px;
-      border: none;
-      background: rgba(248,250,252,0.08);
-      color: #f9fafb;
-      font-size: 15px;
-      cursor: pointer;
-      transition: background 0.18s ease, transform 0.18s ease;
-    }
-
-    .da-inline-mic.da-recording {
-      background: #ff3b30;
-      transform: scale(0.96);
+      width:32px;height:32px;
+      border-radius:50%;
+      background:rgba(255,255,255,0.07);
+      border:none;
+      color:white;
+      cursor:pointer;
     }
 
     .da-input {
-      flex: 1;
-      border-radius: 999px;
-      border: 1px solid rgba(148,163,184,0.7);
-      background: rgba(15,23,42,0.85);
-      padding: 8px 12px;
-      font-size: 13px;
-      color: #f9fafb;
-      outline: none;
+      flex:1;
+      padding:8px 12px;
+      border-radius:20px;
+      border:1px solid rgba(148,163,184,0.4);
+      background:rgba(15,23,42,0.85);
+      color:white;
     }
-
-    .da-input::placeholder { color: #6b7280; }
 
     .da-send-btn {
-      border-radius: 999px;
-      border: none;
-      background: #ff6a1a;
-      color: white;
-      width: 36px;
-      height: 32px;
-      font-size: 16px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: transform 0.1s ease, box-shadow 0.1s ease;
+      width:36px;height:32px;
+      border-radius:20px;
+      background:#ff6a1a;
+      border:none;
+      color:white;
+      cursor:pointer;
     }
 
-    .da-send-btn:active {
-      transform: translateY(1px) scale(0.98);
-      box-shadow: 0 1px 2px rgba(0,0,0,0.4);
-    }
-
-    .da-voice-hint {
-      font-size: 11px;
-      color: #9ca3af;
-      padding: 0 16px 10px 16px;
-      background: #0b1220;
-    }
-
-    /* Light theme overrides (if user has light system theme) */
-    #dentalist-ai-widget-root.da-theme-light .da-chat {
-      background: #f9fafb;
-    }
-    #dentalist-ai-widget-root.da-theme-light .da-chat-header {
-      background: linear-gradient(135deg, #f9fafb 0%, #e5e7eb 40%, #f9fafb 100%);
-      border-bottom-color: rgba(148,163,184,0.6);
-    }
-    #dentalist-ai-widget-root.da-theme-light .da-chat-subtitle,
-    #dentalist-ai-widget-root.da-theme-light .da-input-row,
-    #dentalist-ai-widget-root.da-theme-light .da-voice-hint {
-      background: #f3f4f6;
-    }
-    #dentalist-ai-widget-root.da-theme-light .da-messages {
-      background: radial-gradient(circle at top left, #e5e7eb 0, #f9fafb 55%);
-    }
-    #dentalist-ai-widget-root.da-theme-light .da-msg-bot {
-      background: #ffffff;
-      color: #020617;
-    }
-    #dentalist-ai-widget-root.da-theme-light .da-input {
-      background: #ffffff;
-      color: #020617;
-    }
-
-    @media (max-width: 640px) {
-      .da-chat {
-        width: min(100vw - 16px, 420px);
-        height: min(70vh, 560px);
-        right: 4px;
-        bottom: 90px;
-        border-radius: 18px;
-      }
-
-      .da-floating-btn {
-        width: 54px;
-        height: 54px;
-      }
-    }
   `;
   document.head.appendChild(style);
 
-  // ========= ELEMENTS =========
+  // ELEMENTS
   const chatEl = root.querySelector(".da-chat");
   const openBtn = root.querySelector(".da-floating-btn");
   const closeBtn = root.querySelector(".da-close-btn");
   const messagesEl = root.querySelector(".da-messages");
   const inputEl = root.querySelector(".da-input");
   const sendBtn = root.querySelector(".da-send-btn");
-  const inlineMicBtn = root.querySelector(".da-inline-mic");
+  const micBtn = root.querySelector(".da-inline-mic");
 
-  let isOpen = false;
-  let sending = false;
   let conversationHistory = [];
+  let sending = false;
+  let isOpen = false;
   let hasInteracted = false;
-  let hasSentWelcome = false;
-  let isRecording = false;
 
-  // ========= STATE PERSISTENCE =========
+  // 🔊 TYPING SOUND
+  const typingSound = new Audio("https://assets.mixkit.co/sfx/preview/mixkit-soft-click-1127.mp3");
+
+  // Save + Restore
   function loadState() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return null;
-      return JSON.parse(raw);
-    } catch {
-      return null;
-    }
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch { return null; }
   }
-
   function saveState() {
-    try {
-      const state = {
-        open: isOpen,
-        history: conversationHistory.slice(-12), // last 12 turns
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch {}
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      open: isOpen,
+      history: conversationHistory.slice(-12),
+    }));
   }
 
   function restoreFromState() {
     const state = loadState();
     if (!state) return;
-    if (Array.isArray(state.history)) {
-      conversationHistory = state.history;
-      state.history.forEach((m) => {
-        appendMessage(m.content, m.role === "user" ? "user" : "bot", false);
-      });
-      hasSentWelcome = state.history.some((m) => m.role === "assistant");
-    }
-    if (state.open) {
-      toggleChat(true, false);
-    }
+    conversationHistory = state.history || [];
+    conversationHistory.forEach(msg =>
+      appendMessage(msg.content, msg.role === "user" ? "user" : "bot", false)
+    );
+    if (state.open) toggleChat(true);
   }
 
-  // ========= UI HELPERS =========
-  function tinyPopButton() {
-    openBtn.classList.add("da-pop");
-    setTimeout(() => openBtn.classList.remove("da-pop"), 220);
-  }
-
-  function toggleChat(forceOpen, save = true) {
-    isOpen = typeof forceOpen === "boolean" ? forceOpen : !isOpen;
+  // UI
+  function toggleChat(forceOpen) {
+    isOpen = forceOpen ?? !isOpen;
     chatEl.classList.toggle("da-chat--hidden", !isOpen);
-    if (isOpen) {
-      tinyPopButton();
-      inputEl.focus();
-      maybeSendWelcome();
-    }
-    if (save) saveState();
+    if (isOpen) inputEl.focus();
+    saveState();
   }
 
-  function appendMessage(text, from, updateHistory = true) {
+  function appendMessage(text, from, saveHist = true) {
     const msg = document.createElement("div");
-    msg.className =
-      "da-msg " + (from === "user" ? "da-msg-user" : "da-msg-bot");
+    msg.className = from === "user" ? "da-msg-user" : "da-msg-bot";
     msg.textContent = text;
     messagesEl.appendChild(msg);
     messagesEl.scrollTop = messagesEl.scrollHeight;
 
-    if (updateHistory) {
+    if (saveHist) {
       conversationHistory.push({
         role: from === "user" ? "user" : "assistant",
         content: text,
@@ -484,49 +304,38 @@
     }
   }
 
-  function appendLoadingBubble() {
+  function appendTypingBubble() {
     const msg = document.createElement("div");
-    msg.className = "da-msg da-msg-bot";
+    msg.className = "da-msg-bot";
     msg.innerHTML = `
-      <span class="da-msg-loading">
-        <span class="da-dot"></span><span class="da-dot"></span><span class="da-dot"></span>
-      </span>
+      <div class="da-msg-loading">
+        <div class="da-dot"></div>
+        <div class="da-dot"></div>
+        <div class="da-dot"></div>
+      </div>
     `;
     messagesEl.appendChild(msg);
     messagesEl.scrollTop = messagesEl.scrollHeight;
     return msg;
   }
 
-  // First-time welcome message
-  function maybeSendWelcome() {
-    if (hasSentWelcome) return;
-    if (conversationHistory.length > 0) {
-      hasSentWelcome = true;
-      return;
-    }
-    const welcome =
-      "Hi, I’m Dentalist AI. I can help you book or reschedule an appointment, or answer questions about your visit. How can I help today?";
-    appendMessage(welcome, "bot");
-    hasSentWelcome = true;
-  }
-
-  // ========= TEXT CHAT =========
-  async function sendTextMessage() {
+  // TEXT SENDING
+  async function sendText() {
     if (sending) return;
-    const text = (inputEl.value || "").trim();
+    const text = inputEl.value.trim();
     if (!text) return;
 
-    hasInteracted = true;
-    appendMessage(text, "user");
     inputEl.value = "";
-    sending = true;
+    appendMessage(text, "user");
+    typingSound.play().catch(() => {});
 
-    const loadingBubble = appendLoadingBubble();
+    const loader = appendTypingBubble();
+    sending = true;
 
     try {
       const res = await fetch(`${API_BASE}/api/dentalist-chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
         body: JSON.stringify({
           message: text,
           history: conversationHistory,
@@ -534,186 +343,31 @@
       });
 
       const data = await res.json();
+      loader.remove();
 
-      loadingBubble.remove();
-
-      const reply =
-        data.reply ||
-        "I’m here to help with your visit. Could you please try again?";
-      appendMessage(reply, "bot");
+      appendMessage(data.reply || "Something went wrong.", "bot");
     } catch (err) {
-      console.error("Dentalist chat error:", err);
-      loadingBubble.remove();
-      appendMessage(
-        "Sorry, something went wrong talking to Dentalist AI. Please try again in a moment.",
-        "bot"
-      );
-    } finally {
-      sending = false;
+      loader.remove();
+      appendMessage("Oops! Please try again.", "bot");
     }
+
+    sending = false;
   }
 
-  sendBtn.addEventListener("click", sendTextMessage);
-  inputEl.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendTextMessage();
-    }
+  sendBtn.addEventListener("click", sendText);
+  inputEl.addEventListener("keydown", e => {
+    if (e.key === "Enter") sendText();
   });
 
-  // ========= VOICE (IN + OUT) =========
-  function setRecording(flag) {
-    isRecording = flag;
-    openBtn.classList.toggle("da-recording", flag);
-    inlineMicBtn.classList.toggle("da-recording", flag);
-  }
+  // BUTTONS
+  openBtn.addEventListener("click", () => toggleChat(true));
+  closeBtn.addEventListener("click", () => toggleChat(false));
 
-  async function recordAndSendVoice() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      alert("Your browser doesn't support microphone recording.");
-      return;
-    }
-
-    hasInteracted = true;
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      const chunks = [];
-
-      setRecording(true);
-
-      recorder.ondataavailable = (e) => chunks.push(e.data);
-
-      recorder.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        setRecording(false);
-
-        const blob = new Blob(chunks, { type: "audio/webm" });
-        await sendVoiceBlob(blob);
-      };
-
-      recorder.start();
-
-      // stop on mouseup / touchend (press-to-record)
-      const stop = () => {
-        if (recorder.state !== "inactive") recorder.stop();
-        window.removeEventListener("mouseup", stop);
-        window.removeEventListener("touchend", stop);
-      };
-
-      window.addEventListener("mouseup", stop);
-      window.addEventListener("touchend", stop);
-    } catch (err) {
-      console.error("Mic permission error:", err);
-      setRecording(false);
-      alert(
-        "I couldn't access your microphone. Please allow mic access in your browser settings."
-      );
-    }
-  }
-
-  async function sendVoiceBlob(blob) {
-    if (sending) return;
-    sending = true;
-
-    const loadingBubble = appendLoadingBubble();
-
-    const formData = new FormData();
-    formData.append("audio", blob, "voice.webm");
-
-    try {
-      const res = await fetch(`${API_BASE}/api/transcribe`, {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await res.json();
-      loadingBubble.remove();
-
-      if (data.userText) {
-        appendMessage(data.userText, "user");
-      }
-
-      if (data.replyText) {
-        appendMessage(data.replyText, "bot");
-      }
-
-      if (data.audio) {
-        const audio = new Audio(data.audio);
-        audio.play().catch((err) =>
-          console.warn("Could not autoplay voice response:", err)
-        );
-      }
-    } catch (err) {
-      console.error("Dentalist voice error:", err);
-      loadingBubble.remove();
-      appendMessage(
-        "Sorry, I couldn’t process that voice message. Please try again.",
-        "bot"
-      );
-    } finally {
-      sending = false;
-    }
-  }
-
-  // ========= EVENT HOOKS =========
-  openBtn.addEventListener("click", () => {
-    hasInteracted = true;
-    toggleChat(true);
-  });
-
-  closeBtn.addEventListener("click", () => {
-    toggleChat(false);
-  });
-
-  // floating mic press-to-record:
-  // first press opens chat, second press (while open) records
-  openBtn.addEventListener("mousedown", () => {
-    if (!isOpen) {
-      toggleChat(true);
-      hasInteracted = true;
-    } else {
-      recordAndSendVoice();
-    }
-  });
-
-  openBtn.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    if (!isOpen) {
-      toggleChat(true);
-      hasInteracted = true;
-    } else {
-      recordAndSendVoice();
-    }
-  });
-
-  inlineMicBtn.addEventListener("click", () => {
-    recordAndSendVoice();
-  });
-
-  // expose global opener for internal buttons if needed
-  window.openDentalistChat = () => {
-    toggleChat(true);
-    hasInteracted = true;
-  };
-
-  // ========= RESTORE & AUTO-OPEN =========
   restoreFromState();
 
-  // auto open once per session after 5s if user hasn't interacted
+  // Auto-open after 5s
   setTimeout(() => {
-    const state = loadState();
-    const autoOpenedThisSession = sessionStorage.getItem(
-      AUTO_OPEN_SESSION_KEY
-    );
-    if (
-      !hasInteracted &&
-      !(state && state.open) &&
-      !autoOpenedThisSession
-    ) {
-      toggleChat(true);
-      sessionStorage.setItem(AUTO_OPEN_SESSION_KEY, "1");
-    }
+    if (!hasInteracted) toggleChat(true);
   }, 5000);
+
 })();
