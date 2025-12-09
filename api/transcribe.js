@@ -1,70 +1,48 @@
-// api/transcribe.js
+import OpenAI from "openai";
+export const config = { runtime: "edge" };
 
-const ALLOWED_ORIGIN = "https://www.dentalistai.com"; // change if needed
+const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-function setCors(res) {
-  res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-}
+export default async function handler(req) {
+  const contentType = req.headers.get("Content-Type") || "";
 
-const FormData = require("form-data");
+  // Voice upload
+  if (contentType.includes("multipart/form-data")) {
+    const form = await req.formData();
+    const audio = form.get("audio");
 
-export default async function handler(req, res) {
-  setCors(res);
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
-
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
-  try {
-    const { audio } = req.body;
-
-    if (!audio) {
-      return res.status(400).json({ error: "Missing audio data" });
-    }
-
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ error: "Missing OpenAI API Key" });
-    }
-
-    // Base64 → Buffer
-    const buffer = Buffer.from(audio, "base64");
-
-    const form = new FormData();
-    form.append("file", buffer, {
-      filename: "voice.webm",
-      contentType: "audio/webm",
+    const transcript = await client.audio.transcriptions.create({
+      file: audio,
+      model: "gpt-4o-transcribe"
     });
-    form.append("model", "whisper-1");
 
-    const response = await fetch(
-      "https://api.openai.com/v1/audio/transcriptions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          ...form.getHeaders(),
-        },
-        body: form,
-      }
-    );
+    const reply = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: transcript.text }]
+    });
 
-    const json = await response.json();
+    const speech = await client.audio.speech.create({
+      model: "gpt-4o-mini-tts",
+      voice: "alloy",
+      input: reply.choices[0].message.content
+    });
 
-    if (!response.ok) {
-      console.error("Transcribe error:", json);
-      return res.status(500).json({ error: json });
-    }
-
-    return res.status(200).json({ text: json.text || "" });
-  } catch (err) {
-    console.error("Transcription server error:", err);
-    return res.status(500).json({ error: "Internal server error" });
+    return new Response(JSON.stringify({
+      reply: reply.choices[0].message.content,
+      audio: `data:audio/mp3;base64,${speech.audio_base64}`
+    }), { status: 200 });
   }
+
+  // Text mode
+  const body = await req.json();
+  const { text } = body;
+
+  const reply = await client.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: text }]
+  });
+
+  return new Response(JSON.stringify({
+    reply: reply.choices[0].message.content
+  }), { status: 200 });
 }
