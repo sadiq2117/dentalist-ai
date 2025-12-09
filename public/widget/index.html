@@ -1,27 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dentalist AI Widget</title>
-  <link rel="stylesheet" href="widget.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dentalist AI Chat Widget</title>
+  <link rel="stylesheet" href="widget.css" />
 </head>
 
 <body>
-  <div id="chat-container">
-    <div id="messages"></div>
 
-    <div id="input-box">
-      <input id="userInput" type="text" placeholder="Ask about booking, treatment, rescheduling...">
-      <button id="sendBtn"><img src="./assets/send.svg"></button>
-      <button id="micBtn"><img src="./assets/mic.svg"></button>
+  <!-- FLOATING BUTTON -->
+  <button id="dentalist-float-btn">
+    <img src="./assets/mic.svg" alt="mic"/>
+  </button>
+
+  <!-- CHAT WINDOW -->
+  <div id="dentalist-chatbox" class="hidden">
+    <div id="chat-header">Dentalist AI</div>
+
+    <div id="chat-messages"></div>
+
+    <div id="chat-input-area">
+      <input id="chat-input" type="text" placeholder="Ask about booking, treatment..." />
+      <img id="send-btn" src="./assets/send.svg" alt="send"/>
+      <img id="mic-btn" src="./assets/mic.svg" alt="mic"/>
     </div>
   </div>
 
-  <button id="floatingMic">
-    <img src="./assets/mic.svg">
-  </button>
-
-  <script src="widget.js"></script>
+<script src="widget.js"></script>
 </body>
 </html>
